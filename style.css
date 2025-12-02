@@ -1,0 +1,32 @@
+:root {
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --muted: #64748b;
+}
+
+html, body {
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.card {
+  border: 1px solid #e5e7eb;
+}
+
+.table-hover tbody tr { cursor: pointer; }
+
+.table td, .table th { vertical-align: middle; }
+
+.selected-row {
+  background-color: #e7f1ff !important;
+}
+
+#productDetailsCard p { margin-bottom: .25rem; }
+
+@media (max-width: 575.98px) {
+  .navbar-brand { font-size: 1.05rem; }
+}
+
+
+

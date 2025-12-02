@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "company.html", "use": "@vercel/static" },
+    { "src": "company.js", "use": "@vercel/static" },
+    { "src": "products.html", "use": "@vercel/static" },
+    { "src": "products.js", "use": "@vercel/static" },
+    { "src": "compare.html", "use": "@vercel/static" },
+    { "src": "compare.js", "use": "@vercel/static" },
+    { "src": "analysis.html", "use": "@vercel/static" },
+    { "src": "style.css", "use": "@vercel/static" },
+    { "src": "script.js", "use": "@vercel/static" },
+    { "src": "analysis.js", "use": "@vercel/static" },
+    { "src": "intake.js", "use": "@vercel/static" }
+  ]
+}
+
+

@@ -1,0 +1,273 @@
+// Redirect if not logged in
+if (!localStorage.getItem("token")) {
+  window.location.href = "login.html";
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadProductsFromDB();
+});
+
+async function loadProductsFromDB() {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch("http://localhost:5000/api/products", {
+      headers: { "Authorization": token }
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      products = data;   // Load actual DB products
+      renderProducts();
+    } else {
+      console.error("Failed to load products:", data.error);
+    }
+  } catch (err) {
+    console.error("DB fetch failed:", err);
+  }
+}
+
+
+
+// ------------------ DEFAULT + SEED DATA ------------------
+
+const defaultProduct = () => ({
+  productName: 'Sample Product',
+  costPrice: 10,
+  sellingPrice: 20,
+  unitsSold: 100,
+  region: 'North'
+});
+
+const seedDefaults = () => ([
+  { ...defaultProduct(), productName: 'Smart Speaker', costPrice: 15, sellingPrice: 24, unitsSold: 150, region: 'West' },
+  { ...defaultProduct(), productName: 'Wireless Earbuds', costPrice: 30, sellingPrice: 59, unitsSold: 220, region: 'South' },
+  { ...defaultProduct(), productName: 'E-Reader', costPrice: 50, sellingPrice: 89, unitsSold: 130, region: 'North' },
+]);
+
+
+// ------------------ PRODUCT CARD ------------------
+
+function productCard(product, index) {
+  return `
+  <div class="card mb-3" data-index="${index}">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>
+        Product #${index + 1}
+        ${product._id ? '<span class="text-success">(Saved)</span>' : '<span class="text-warning">(New)</span>'}
+      </strong>
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeProduct(${index})">Remove</button>
+    </div>
+
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Product Name</label>
+          <input class="form-control" id="productName_${index}" value="${product.productName}">
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label">Cost Price ($)</label>
+          <input type="number" class="form-control" id="costPrice_${index}" value="${product.costPrice}">
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label">Selling Price ($)</label>
+          <input type="number" class="form-control" id="sellingPrice_${index}" value="${product.sellingPrice}">
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label">Units Sold</label>
+          <input type="number" class="form-control" id="unitsSold_${index}" value="${product.unitsSold}">
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label">Region</label>
+          <select class="form-control" id="region_${index}">
+            <option ${product.region === 'North' ? 'selected' : ''}>North</option>
+            <option ${product.region === 'South' ? 'selected' : ''}>South</option>
+            <option ${product.region === 'East' ? 'selected' : ''}>East</option>
+            <option ${product.region === 'West' ? 'selected' : ''}>West</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <div class="mt-3">
+        <button type="button" class="btn btn-success btn-sm" onclick="saveProduct(${index})">
+          Save Product
+        </button>
+      </div>
+
+    </div>
+  </div>`;
+}
+
+
+// ------------------ GLOBAL PRODUCTS ARRAY ------------------
+
+let products = [];
+
+
+// ------------------ RENDER ------------------
+
+function renderProducts() {
+  const container = document.getElementById('productsContainer');
+  container.innerHTML = products.map((p, i) => productCard(p, i)).join('');
+}
+
+
+// ------------------ ADD PRODUCT ------------------
+
+function addProduct(prefill) {
+  products.push(prefill || defaultProduct());
+  renderProducts();
+}
+
+
+// ------------------ REMOVE PRODUCT ------------------
+
+async function removeProduct(index) {
+  const product = products[index];
+
+  if (!product._id) {
+    alert("This product is not saved in DB yet.");
+    products.splice(index, 1);
+    renderProducts();
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(`http://localhost:5000/api/products/${product._id}`, {
+      method: "DELETE",
+      headers: { "Authorization": token }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "Failed to delete from DB");
+      return;
+    }
+
+    alert("Deleted successfully");
+
+    // Remove from UI
+    products.splice(index, 1);
+    renderProducts();
+
+  } catch (err) {
+    console.error(err);
+    alert("Error deleting product");
+  }
+}
+
+
+
+// ------------------ READ PRODUCT FIELDS ------------------
+
+function readProductsFromDOM() {
+  products = products.map((p, i) => ({
+    _id: p._id || null,
+    productName: document.getElementById(`productName_${i}`).value,
+    costPrice: Number(document.getElementById(`costPrice_${i}`).value) || 0,
+    sellingPrice: Number(document.getElementById(`sellingPrice_${i}`).value) || 0,
+    unitsSold: Number(document.getElementById(`unitsSold_${i}`).value) || 0,
+    region: document.getElementById(`region_${i}`).value,
+  }));
+}
+
+
+// ------------------ SAVE PRODUCT TO DB ------------------
+
+async function saveProduct(index) {
+  const product = {
+    productName: document.getElementById(`productName_${index}`).value,
+    costPrice: Number(document.getElementById(`costPrice_${index}`).value) || 0,
+    sellingPrice: Number(document.getElementById(`sellingPrice_${index}`).value) || 0,
+    unitsSold: Number(document.getElementById(`unitsSold_${index}`).value) || 0,
+    region: document.getElementById(`region_${index}`).value
+  };
+
+  try {
+    const response = await fetch('http://localhost:5000/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json',
+                 'Authorization': token
+       },
+      body: JSON.stringify(product)
+    });
+
+    const data = await response.json();
+
+    // Save DB ID back into local array
+    products[index] = { ...product, _id: data.product._id };
+
+    renderProducts();
+    alert(`Product "${product.productName}" saved successfully!`);
+
+  } catch (err) {
+    console.error(err);
+    alert("Error saving product");
+  }
+}
+
+
+// ------------------ LOAD PRODUCTS FROM DATABASE ------------------
+
+async function fetchProductsFromDB() {
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await fetch('http://localhost:5000/api/products', {
+      method: "GET",
+      headers: {
+        "Authorization": token,      // 🔥 required for auth
+        "Content-Type": "application/json"
+      }
+    });
+
+    const data = await response.json();
+
+    if (data.length > 0) {
+      products = data;
+    } else {
+      products = seedDefaults();
+    }
+
+    renderProducts();
+
+  } catch (err) {
+    console.error("Failed to load from DB:", err);
+    products = seedDefaults();
+    renderProducts();
+  }
+}
+
+
+
+// ------------------ DOM LOADED ------------------
+
+document.addEventListener('DOMContentLoaded', () => {
+  fetchProductsFromDB();
+
+  document.getElementById('addProductBtn')
+    .addEventListener('click', () => addProduct(defaultProduct()));
+
+  document.getElementById('productForm')
+    .addEventListener('submit', (e) => {
+      e.preventDefault();
+      readProductsFromDOM();
+      window.location.href = 'compare.html';
+    });
+});
+
+
+// Make functions available to HTML
+window.removeProduct = removeProduct;
+window.saveProduct = saveProduct;
+window.addProduct = addProduct;
