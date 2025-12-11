@@ -1,32 +1,27 @@
-:root {
-  --bg: #f8fafc;
-  --text: #0f172a;
-  --muted: #64748b;
+
+/* --- CHART FIXES --- */
+
+.chart-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 15px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
-html, body {
-  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  color: var(--text);
-  background: var(--bg);
+/* Let Chart.js control canvas height */
+.chart-container canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 260px;      /* Reduced height */
 }
 
-.card {
-  border: 1px solid #e5e7eb;
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .chart-container {
+    background: #1e1e1e;
+    box-shadow: 0 4px 12px rgba(255,255,255,0.05);
+  }
 }
-
-.table-hover tbody tr { cursor: pointer; }
-
-.table td, .table th { vertical-align: middle; }
-
-.selected-row {
-  background-color: #e7f1ff !important;
-}
-
-#productDetailsCard p { margin-bottom: .25rem; }
-
-@media (max-width: 575.98px) {
-  .navbar-brand { font-size: 1.05rem; }
-}
-
-
-

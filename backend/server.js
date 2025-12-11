@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const Product = require("./models/Product");
 
 const app = express();
 app.use(cors());
@@ -26,21 +27,6 @@ const UserSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model("User", UserSchema);
-
-
-// ----------- PRODUCT MODEL -------------
-const ProductSchema = new mongoose.Schema({
-  productName: String,
-  costPrice: Number,
-  sellingPrice: Number,
-  unitsSold: Number,
-  region: String,
-  ownerId: String,   // link product to owner
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Product = mongoose.model("Product", ProductSchema);
-
 
 // ----------- REGISTER API (FINAL) -------------
 app.post("/api/register", async (req, res) => {
@@ -134,6 +120,56 @@ app.delete('/api/products/:id', auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ADD MONTHLY SALES ENTRY
+app.post("/api/products/:id/monthly", auth, async (req, res) => {
+  try {
+    const { month, costPrice, sellingPrice, unitsSold } = req.body;
+
+    const product = await Product.findOne({
+      _id: req.params.id,
+      ownerId: req.userId
+    });
+
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    product.monthlySales.push({
+      month,
+      costPrice,
+      sellingPrice,
+      unitsSold
+    });
+
+    await product.save();
+    res.json({ message: "Monthly sales added", product });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// // ADD MONTHLY SALES ENTRY
+// app.post("/api/products/:id/monthly", auth, async (req, res) => {
+//   try {
+//     const product = await Product.findOne({
+//       _id: req.params.id,
+//       ownerId: req.userId
+//     });
+
+//     if (!product) {
+//       return res.status(404).json({ error: "Product not found" });
+//     }
+
+//     product.monthlySales.push(req.body);
+//     await product.save();
+
+//     res.json({ message: "Monthly sales added", product });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
 
 
 

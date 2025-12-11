@@ -99,6 +99,9 @@ function productCard(product, index) {
         <button type="button" class="btn btn-success btn-sm" onclick="saveProduct(${index})">
           Save Product
         </button>
+        <button type="button" class="btn btn-info btn-sm mt-2" onclick="openMonthlyPopup(${index})">
+          Add Monthly Sales
+        </button>
       </div>
 
     </div>
@@ -185,6 +188,14 @@ function readProductsFromDOM() {
 // ------------------ SAVE PRODUCT TO DB ------------------
 
 async function saveProduct(index) {
+  const token = localStorage.getItem("token");  // ✅ FIX — DEFINE TOKEN HERE
+
+  if (!token) {
+    alert("Session expired. Login again.");
+    window.location.href = "login.html";
+    return;
+  }
+
   const product = {
     productName: document.getElementById(`productName_${index}`).value,
     costPrice: Number(document.getElementById(`costPrice_${index}`).value) || 0,
@@ -194,17 +205,23 @@ async function saveProduct(index) {
   };
 
   try {
-    const response = await fetch('http://localhost:5000/api/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json',
-                 'Authorization': token
-       },
+    const response = await fetch("http://localhost:5000/api/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token   // ✅ now token exists
+      },
       body: JSON.stringify(product)
     });
 
     const data = await response.json();
 
-    // Save DB ID back into local array
+    if (!response.ok) {
+      alert(data.error || "Failed to save product");
+      return;
+    }
+
+    // update memory with database _id
     products[index] = { ...product, _id: data.product._id };
 
     renderProducts();
@@ -215,6 +232,7 @@ async function saveProduct(index) {
     alert("Error saving product");
   }
 }
+
 
 
 // ------------------ LOAD PRODUCTS FROM DATABASE ------------------
@@ -265,6 +283,65 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = 'compare.html';
     });
 });
+
+let activeProductIndex = null;
+
+// Open popup
+function openMonthlyPopup(index) {
+  const product = products[index];
+
+  if (!product._id) {
+    alert("Please save this product first before adding monthly sales.");
+    return;
+  }
+
+  activeProductIndex = index;
+  document.getElementById("monthlyPopup").style.display = "flex";
+}
+
+
+// Close popup
+function closePopup() {
+  document.getElementById("monthlyPopup").style.display = "none";
+}
+
+async function saveMonthlySale() {
+  const token = localStorage.getItem("token");
+  const product = products[activeProductIndex];
+
+  const entry = {
+    month: document.getElementById("m_month").value,
+    costPrice: Number(document.getElementById("m_cost").value),
+    sellingPrice: Number(document.getElementById("m_sell").value),
+    unitsSold: Number(document.getElementById("m_units").value)
+  };
+
+  const res = await fetch(`http://localhost:5000/api/products/${product._id}/monthly`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": token
+    },
+    body: JSON.stringify(entry)
+  });
+
+  const data = await res.json();
+
+  if (res.ok) {
+    alert("Monthly sales added!");
+
+    products[activeProductIndex] = data.product; // update UI
+    closePopup();
+    renderProducts();
+  } else {
+    alert(data.error);
+  }
+}
+
+window.openMonthlyPopup = openMonthlyPopup;
+window.saveMonthlySale = saveMonthlySale;
+window.closePopup = closePopup;
+
 
 
 // Make functions available to HTML
