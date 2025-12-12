@@ -1,6 +1,6 @@
-// ================================
-// LOAD PRODUCTS
-// ================================
+// compare.js — restored simple charts version
+
+// Load products (from sessionStorage if available, otherwise from API)
 async function loadProducts() {
   const stored = sessionStorage.getItem("products");
   if (stored) return JSON.parse(stored);
@@ -10,21 +10,15 @@ async function loadProducts() {
     const res = await fetch("http://localhost:5000/api/products", {
       headers: { Authorization: token }
     });
-
     return await res.json();
   } catch (err) {
-    console.error("Failed to load products", err);
+    console.error("Load error:", err);
     return [];
   }
 }
 
-
-
-// ================================
-// PREPARE DATA
-// ================================
+// Prepare aggregated data for charts
 function prepareData(products) {
-  // Revenue per product
   const revenueByProduct = products.map(p => ({
     name: p.productName,
     revenue: (p.sellingPrice ?? 0) * (p.unitsSold ?? 0),
@@ -33,40 +27,38 @@ function prepareData(products) {
   }));
 
   // Revenue by region
-  const regionRevenue = {};
+  const revenueRegion = {};
   revenueByProduct.forEach(p => {
-    regionRevenue[p.region] = (regionRevenue[p.region] || 0) + p.revenue;
+    revenueRegion[p.region] = (revenueRegion[p.region] || 0) + p.revenue;
   });
 
-  // Monthly aggregated revenue
-  const monthMap = {}; // { "2024-01": 12300 }
-
+  // Build monthly aggregated revenue across products (month string expected as YYYY-MM)
+  const monthMap = {};
   products.forEach(p => {
-    if (!p.monthlySales) return;
-
+    if (!Array.isArray(p.monthlySales)) return;
     p.monthlySales.forEach(m => {
-      const rev = m.revenue ?? (m.sellingPrice * m.unitsSold);
-      monthMap[m.month] = (monthMap[m.month] || 0) + rev;
+      const rev = (typeof m.revenue === 'number') ? m.revenue : (m.sellingPrice ?? 0) * (m.unitsSold ?? 0);
+      if (m && m.month) monthMap[m.month] = (monthMap[m.month] || 0) + rev;
     });
   });
 
-  const months = Object.keys(monthMap).sort();
-  const monthlySeries = months.map(m => monthMap[m]);
+  const sortedMonths = Object.keys(monthMap).sort();
+  const monthlySeries = sortedMonths.map(m => monthMap[m]);
 
-  return { revenueByProduct, regionRevenue, months, monthlySeries };
+  return {
+    revenueByProduct,
+    revenueRegion,
+    sortedMonths,
+    monthlySeries
+  };
 }
 
-
-
-// ================================
-// SIMPLE LINEAR FORECAST
-// ================================
+// Simple linear regression forecast for a short horizon
 function regressionForecast(series, count = 3) {
   const n = series.length;
   if (n < 2) return Array(count).fill(series[n - 1] || 0);
 
   let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-
   for (let i = 0; i < n; i++) {
     sumX += i;
     sumY += series[i];
@@ -74,28 +66,21 @@ function regressionForecast(series, count = 3) {
     sumXX += i * i;
   }
 
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const denom = (n * sumXX - sumX * sumX);
+  const slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
   const intercept = (sumY - slope * sumX) / n;
 
-  const out = [];
-
+  const result = [];
   for (let i = 1; i <= count; i++) {
     const x = n - 1 + i;
-    out.push(intercept + slope * x);
+    result.push(intercept + slope * x);
   }
-  return out;
+  return result;
 }
 
-
-
-// ================================
-// BUILD CHARTS
-// ================================
-function buildCharts(data, products) {
-
-  // -------------------------
-  // Revenue By Product (BAR)
-  // -------------------------
+// Build charts: revenue by product, revenue by region, monthly revenue + forecast
+function buildCharts(data) {
+  // Revenue by product (bar)
   new Chart(document.getElementById("revenueByProduct"), {
     type: "bar",
     data: {
@@ -103,63 +88,34 @@ function buildCharts(data, products) {
       datasets: [{
         label: "Revenue",
         data: data.revenueByProduct.map(p => p.revenue),
-        backgroundColor: "rgba(54,162,235,0.7)",
-        borderColor: "#1e88e5",
-        borderWidth: 2
+        backgroundColor: "rgba(54,162,235,0.6)"
       }]
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true } }
+      maintainAspectRatio: false
     }
   });
 
-
-  // -------------------------
-  // Units Sold Per Product (BAR)
-  // -------------------------
-  new Chart(document.getElementById("unitsSoldPerProduct"), {
-    type: "bar",
-    data: {
-      labels: products.map(p => p.productName),
-      datasets: [{
-        label: "Units Sold",
-        data: products.map(p => Number(p.unitsSold) || 0),
-        backgroundColor: "rgba(75,192,192,0.7)",
-        borderColor: "#00897b",
-        borderWidth: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true } }
-    }
-  });
-
-
-  // -------------------------
-  // Revenue By Region (PIE)
-  // -------------------------
+  // Revenue by region (pie)
   new Chart(document.getElementById("revenueByRegion"), {
     type: "pie",
     data: {
-      labels: Object.keys(data.regionRevenue),
+      labels: Object.keys(data.revenueRegion),
       datasets: [{
-        data: Object.values(data.regionRevenue),
-        backgroundColor: ["#ff6b6b", "#4dabf7", "#ffd43b", "#51cf66"]
+        data: Object.values(data.revenueRegion),
+        backgroundColor: ["#ff6384", "#36a2eb", "#ffce56", "#4bc0c0"]
       }]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
   });
 
-
-  // -------------------------
-  // Monthly Revenue + Forecast (LINE)
-  // -------------------------
+  // Monthly revenue + forecast (line)
   const forecast = regressionForecast(data.monthlySeries, 3);
-  const finalLabels = data.months.concat(["F+1", "F+2", "F+3"]);
+  const finalLabels = data.sortedMonths.concat(["F+1", "F+2", "F+3"]);
 
   new Chart(document.getElementById("monthlyRevenue"), {
     type: "line",
@@ -169,18 +125,14 @@ function buildCharts(data, products) {
         {
           label: "Actual Revenue",
           data: data.monthlySeries,
-          borderColor: "#1e88e5",
-          borderWidth: 2,
-          tension: 0.3,
+          borderColor: "#007bff",
           fill: false
         },
         {
           label: "Forecast",
           data: Array(data.monthlySeries.length).fill(null).concat(forecast),
-          borderColor: "red",
-          borderDash: [6, 4],
-          borderWidth: 2,
-          tension: 0.3,
+          borderColor: "#ff0000",
+          borderDash: [6, 3],
           fill: false
         }
       ]
@@ -192,59 +144,75 @@ function buildCharts(data, products) {
   });
 }
 
+// Bar chart for Units Sold per product
+function buildUnitsSoldChart(products) {
+  const labels = products.map(p => p.productName);
+  const units = products.map(p => Number(p.unitsSold) || 0);
 
-
-// ================================
-// INSIGHTS SECTION
-// ================================
-function showInsights(data) {
-  const list = document.getElementById("insightsList");
-  list.innerHTML = "";
-
-  const top = data.revenueByProduct.sort((a, b) => b.revenue - a.revenue)[0];
-  if (top) list.innerHTML += `<li><b>Top Product:</b> ${top.name} (₹${top.revenue.toFixed(2)})</li>`;
-
-  const total = data.revenueByProduct.reduce((a, b) => a + b.revenue, 0);
-  list.innerHTML += `<li><b>Total Revenue:</b> ₹${total.toFixed(2)}</li>`;
-
-  const bestRegion = Object.entries(data.regionRevenue)
-    .sort((a, b) => b[1] - a[1])[0];
-
-  if (bestRegion)
-    list.innerHTML += `<li><b>Best Region:</b> ${bestRegion[0]}</li>`;
-
-  const future = regressionForecast(data.monthlySeries, 3);
-  list.innerHTML += `<li><b>Forecast (Next 3 Months):</b> ${future.map(v => v.toFixed(0)).join(", ")}</li>`;
+  new Chart(document.getElementById("unitsSoldPerProduct"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Units Sold",
+        data: units,
+        backgroundColor: "rgba(75, 192, 192, 0.6)",
+        borderColor: "rgba(75, 192, 192, 1)",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: "Units Sold" }
+        }
+      }
+    }
+  });
 }
 
+// Show simple insights
+function showInsights(data) {
+  const el = document.getElementById("insightsList");
+  el.innerHTML = "";
 
+  const top = data.revenueByProduct.sort((a, b) => b.revenue - a.revenue)[0];
+  if (top) el.innerHTML += `<li>Top Product: <b>${top.name}</b> (₹${top.revenue.toFixed(2)})</li>`;
 
-// ================================
-// EXPORT CHART
-// ================================
+  const total = data.revenueByProduct.reduce((a, b) => a + b.revenue, 0);
+  el.innerHTML += `<li>Total Revenue: ₹${total.toFixed(2)}</li>`;
+
+  const regions = Object.entries(data.revenueRegion);
+  if (regions.length) {
+    const best = regions.sort((a, b) => b[1] - a[1])[0];
+    el.innerHTML += `<li>Best Region: <b>${best[0]}</b></li>`;
+  }
+
+  const forecast = regressionForecast(data.monthlySeries, 3);
+  el.innerHTML += `<li>Next 3 months forecast: ${forecast.map(f => Math.round(f)).join(", ")}</li>`;
+}
+
+// Export first chart as PNG
 function initExport() {
   document.getElementById("exportBtn").onclick = () => {
     const canvas = document.getElementById("revenueByProduct");
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL();
-    link.download = "sales_chart.png";
-    link.click();
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sales_chart.png";
+    a.click();
   };
 }
 
-
-
-// ================================
-// MAIN FUNCTION
-// ================================
+// Main
 (async function () {
   const products = await loadProducts();
-
   const data = prepareData(products);
-
-  buildCharts(data, products);
-
+  buildCharts(data);
+  buildUnitsSoldChart(products);
   showInsights(data);
-
   initExport();
 })();
