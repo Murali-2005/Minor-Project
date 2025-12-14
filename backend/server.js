@@ -33,20 +33,40 @@ app.post("/api/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // check duplicate
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ error: "Email already registered" });
+    // -------- BACKEND VALIDATION --------
+    if (!name || name.trim().length < 3) {
+      return res.status(400).json({ error: "Name must be at least 3 characters" });
+    }
 
-    // hash password
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: "Invalid email address" });
+    }
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    // Check duplicate
+    const exists = await User.findOne({ email });
+    if (exists) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await new User({ name, email, password: hashedPassword }).save();
+    await new User({
+      name: name.trim(),
+      email: email.trim(),
+      password: hashedPassword
+    }).save();
 
     res.json({ message: "Registered successfully" });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 
 // ----------- LOGIN API (FINAL) -------------
@@ -83,7 +103,6 @@ function auth(req, res, next) {
     res.status(401).json({ error: "Invalid token" });
   }
 }
-
 
 // ----------- PRODUCT ROUTES (PROTECTED) -------------
 
@@ -147,30 +166,5 @@ app.post("/api/products/:id/monthly", auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
-// // ADD MONTHLY SALES ENTRY
-// app.post("/api/products/:id/monthly", auth, async (req, res) => {
-//   try {
-//     const product = await Product.findOne({
-//       _id: req.params.id,
-//       ownerId: req.userId
-//     });
-
-//     if (!product) {
-//       return res.status(404).json({ error: "Product not found" });
-//     }
-
-//     product.monthlySales.push(req.body);
-//     await product.save();
-
-//     res.json({ message: "Monthly sales added", product });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// });
-
-
-
 
 app.listen(5000, () => console.log("Server running on port 5000"));
