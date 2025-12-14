@@ -1,12 +1,27 @@
-// Redirect if not logged in
+// products.js
+// This file handles adding, editing, saving and deleting products
+// It also connects with the backend database and manages monthly sales data
+
+
+// =====================================================
+// REDIRECT IF USER IS NOT LOGGED IN
+// =====================================================
 if (!localStorage.getItem("token")) {
   window.location.href = "login.html";
 }
 
+
+// =====================================================
+// LOAD PRODUCTS WHEN PAGE LOADS
+// =====================================================
 document.addEventListener('DOMContentLoaded', () => {
   loadProductsFromDB();
 });
 
+
+// =====================================================
+// FETCH PRODUCTS FROM DATABASE
+// =====================================================
 async function loadProductsFromDB() {
   try {
     const token = localStorage.getItem("token");
@@ -18,8 +33,8 @@ async function loadProductsFromDB() {
     const data = await res.json();
 
     if (res.ok) {
-      products = data;   // Load actual DB products
-      renderProducts();
+      products = data;      // store products from DB
+      renderProducts();     // display them
     } else {
       console.error("Failed to load products:", data.error);
     }
@@ -29,9 +44,9 @@ async function loadProductsFromDB() {
 }
 
 
-
-// ------------------ DEFAULT + SEED DATA ------------------
-
+// =====================================================
+// DEFAULT AND SAMPLE PRODUCTS
+// =====================================================
 const defaultProduct = () => ({
   productName: 'Sample Product',
   costPrice: 10,
@@ -47,17 +62,21 @@ const seedDefaults = () => ([
 ]);
 
 
-// ------------------ PRODUCT CARD ------------------
-
+// =====================================================
+// PRODUCT CARD UI (HTML TEMPLATE)
+// =====================================================
 function productCard(product, index) {
   return `
   <div class="card mb-3" data-index="${index}">
     <div class="card-header d-flex justify-content-between align-items-center">
       <strong>
         Product #${index + 1}
-        ${product._id ? '<span class="text-success">(Saved)</span>' : '<span class="text-warning">(New)</span>'}
+        ${product._id 
+          ? '<span class="text-success">(Saved)</span>' 
+          : '<span class="text-warning">(New)</span>'}
       </strong>
-      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeProduct(${index})">Remove</button>
+      <button type="button" class="btn btn-sm btn-outline-danger"
+        onclick="removeProduct(${index})">Remove</button>
     </div>
 
     <div class="card-body">
@@ -65,22 +84,30 @@ function productCard(product, index) {
 
         <div class="col-12 col-md-6">
           <label class="form-label">Product Name</label>
-          <input class="form-control" id="productName_${index}" value="${product.productName}">
+          <input class="form-control"
+            id="productName_${index}"
+            value="${product.productName}">
         </div>
 
         <div class="col-6 col-md-3">
           <label class="form-label">Cost Price ($)</label>
-          <input type="number" class="form-control" id="costPrice_${index}" value="${product.costPrice}">
+          <input type="number" class="form-control"
+            id="costPrice_${index}"
+            value="${product.costPrice}">
         </div>
 
         <div class="col-6 col-md-3">
           <label class="form-label">Selling Price ($)</label>
-          <input type="number" class="form-control" id="sellingPrice_${index}" value="${product.sellingPrice}">
+          <input type="number" class="form-control"
+            id="sellingPrice_${index}"
+            value="${product.sellingPrice}">
         </div>
 
         <div class="col-6 col-md-3">
           <label class="form-label">Units Sold</label>
-          <input type="number" class="form-control" id="unitsSold_${index}" value="${product.unitsSold}">
+          <input type="number" class="form-control"
+            id="unitsSold_${index}"
+            value="${product.unitsSold}">
         </div>
 
         <div class="col-6 col-md-3">
@@ -94,12 +121,17 @@ function productCard(product, index) {
         </div>
       </div>
 
-      <!-- Save Button -->
+      <!-- Buttons -->
       <div class="mt-3">
-        <button type="button" class="btn btn-success btn-sm" onclick="saveProduct(${index})">
+        <button type="button"
+          class="btn btn-success btn-sm"
+          onclick="saveProduct(${index})">
           Save Product
         </button>
-        <button type="button" class="btn btn-info btn-sm mt-2" onclick="openMonthlyPopup(${index})">
+
+        <button type="button"
+          class="btn btn-info btn-sm mt-2"
+          onclick="openMonthlyPopup(${index})">
           Add Monthly Sales
         </button>
       </div>
@@ -109,34 +141,39 @@ function productCard(product, index) {
 }
 
 
-// ------------------ GLOBAL PRODUCTS ARRAY ------------------
-
+// =====================================================
+// GLOBAL PRODUCTS ARRAY
+// =====================================================
 let products = [];
 
 
-// ------------------ RENDER ------------------
-
+// =====================================================
+// DISPLAY PRODUCTS ON PAGE
+// =====================================================
 function renderProducts() {
   const container = document.getElementById('productsContainer');
-  container.innerHTML = products.map((p, i) => productCard(p, i)).join('');
+  container.innerHTML =
+    products.map((p, i) => productCard(p, i)).join('');
 }
 
 
-// ------------------ ADD PRODUCT ------------------
-
+// =====================================================
+// ADD NEW PRODUCT
+// =====================================================
 function addProduct(prefill) {
   products.push(prefill || defaultProduct());
   renderProducts();
 }
 
 
-// ------------------ REMOVE PRODUCT ------------------
-
+// =====================================================
+// REMOVE PRODUCT
+// =====================================================
 async function removeProduct(index) {
   const product = products[index];
 
+  // If product is not saved in DB
   if (!product._id) {
-    alert("This product is not saved in DB yet.");
     products.splice(index, 1);
     renderProducts();
     return;
@@ -145,21 +182,22 @@ async function removeProduct(index) {
   try {
     const token = localStorage.getItem("token");
 
-    const response = await fetch(`http://localhost:5000/api/products/${product._id}`, {
-      method: "DELETE",
-      headers: { "Authorization": token }
-    });
+    const response = await fetch(
+      `http://localhost:5000/api/products/${product._id}`,
+      {
+        method: "DELETE",
+        headers: { "Authorization": token }
+      }
+    );
 
     const data = await response.json();
 
     if (!response.ok) {
-      alert(data.error || "Failed to delete from DB");
+      alert(data.error || "Failed to delete product");
       return;
     }
 
-    alert("Deleted successfully");
-
-    // Remove from UI
+    alert("Product deleted successfully");
     products.splice(index, 1);
     renderProducts();
 
@@ -170,9 +208,9 @@ async function removeProduct(index) {
 }
 
 
-
-// ------------------ READ PRODUCT FIELDS ------------------
-
+// =====================================================
+// READ PRODUCT VALUES FROM FORM
+// =====================================================
 function readProductsFromDOM() {
   products = products.map((p, i) => ({
     _id: p._id || null,
@@ -180,18 +218,19 @@ function readProductsFromDOM() {
     costPrice: Number(document.getElementById(`costPrice_${i}`).value) || 0,
     sellingPrice: Number(document.getElementById(`sellingPrice_${i}`).value) || 0,
     unitsSold: Number(document.getElementById(`unitsSold_${i}`).value) || 0,
-    region: document.getElementById(`region_${i}`).value,
+    region: document.getElementById(`region_${i}`).value
   }));
 }
 
 
-// ------------------ SAVE PRODUCT TO DB ------------------
-
+// =====================================================
+// SAVE PRODUCT TO DATABASE
+// =====================================================
 async function saveProduct(index) {
-  const token = localStorage.getItem("token");  // ✅ FIX — DEFINE TOKEN HERE
+  const token = localStorage.getItem("token");
 
   if (!token) {
-    alert("Session expired. Login again.");
+    alert("Session expired. Please login again.");
     window.location.href = "login.html";
     return;
   }
@@ -209,7 +248,7 @@ async function saveProduct(index) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": token   // ✅ now token exists
+        "Authorization": token
       },
       body: JSON.stringify(product)
     });
@@ -221,11 +260,10 @@ async function saveProduct(index) {
       return;
     }
 
-    // update memory with database _id
     products[index] = { ...product, _id: data.product._id };
-
     renderProducts();
-    alert(`Product "${product.productName}" saved successfully!`);
+
+    alert(`Product "${product.productName}" saved successfully`);
 
   } catch (err) {
     console.error(err);
@@ -234,43 +272,11 @@ async function saveProduct(index) {
 }
 
 
-
-// ------------------ LOAD PRODUCTS FROM DATABASE ------------------
-
-async function fetchProductsFromDB() {
-  try {
-    const token = localStorage.getItem("token");
-
-    const response = await fetch('http://localhost:5000/api/products', {
-      method: "GET",
-      headers: {
-        "Authorization": token,      // 🔥 required for auth
-        "Content-Type": "application/json"
-      }
-    });
-
-    const data = await response.json();
-
-    if (data.length > 0) {
-      products = data;
-    } else {
-      products = seedDefaults();
-    }
-
-    renderProducts();
-
-  } catch (err) {
-    console.error("Failed to load from DB:", err);
-    products = seedDefaults();
-    renderProducts();
-  }
-}
-
-
-
-// ------------------ DOM LOADED ------------------
-
+// =====================================================
+// LOAD PRODUCTS + EVENTS ON PAGE LOAD
+// =====================================================
 document.addEventListener('DOMContentLoaded', () => {
+
   fetchProductsFromDB();
 
   document.getElementById('addProductBtn')
@@ -284,6 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+
+// =====================================================
+// MONTHLY SALES POPUP
+// =====================================================
 let activeProductIndex = null;
 
 // Open popup
@@ -291,7 +301,7 @@ function openMonthlyPopup(index) {
   const product = products[index];
 
   if (!product._id) {
-    alert("Please save this product first before adding monthly sales.");
+    alert("Please save the product before adding monthly sales");
     return;
   }
 
@@ -299,12 +309,12 @@ function openMonthlyPopup(index) {
   document.getElementById("monthlyPopup").style.display = "flex";
 }
 
-
 // Close popup
 function closePopup() {
   document.getElementById("monthlyPopup").style.display = "none";
 }
 
+// Save monthly sales
 async function saveMonthlySale() {
   const token = localStorage.getItem("token");
   const product = products[activeProductIndex];
@@ -316,21 +326,23 @@ async function saveMonthlySale() {
     unitsSold: Number(document.getElementById("m_units").value)
   };
 
-  const res = await fetch(`http://localhost:5000/api/products/${product._id}/monthly`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": token
-    },
-    body: JSON.stringify(entry)
-  });
+  const res = await fetch(
+    `http://localhost:5000/api/products/${product._id}/monthly`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      },
+      body: JSON.stringify(entry)
+    }
+  );
 
   const data = await res.json();
 
   if (res.ok) {
-    alert("Monthly sales added!");
-
-    products[activeProductIndex] = data.product; // update UI
+    alert("Monthly sales added successfully");
+    products[activeProductIndex] = data.product;
     closePopup();
     renderProducts();
   } else {
@@ -338,13 +350,13 @@ async function saveMonthlySale() {
   }
 }
 
-window.openMonthlyPopup = openMonthlyPopup;
-window.saveMonthlySale = saveMonthlySale;
-window.closePopup = closePopup;
 
-
-
-// Make functions available to HTML
+// =====================================================
+// MAKE FUNCTIONS AVAILABLE TO HTML
+// =====================================================
 window.removeProduct = removeProduct;
 window.saveProduct = saveProduct;
 window.addProduct = addProduct;
+window.openMonthlyPopup = openMonthlyPopup;
+window.saveMonthlySale = saveMonthlySale;
+window.closePopup = closePopup;

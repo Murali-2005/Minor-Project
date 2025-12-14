@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -51,6 +51,104 @@ function logout() {
   localStorage.removeItem("userId");
   window.location.href = "login.html";
 }
+</script>
+
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Basic meta information -->
+  <meta charset="UTF-8">
+  <title>Product Analysis</title>
+
+  <!-- Bootstrap is used for layout, navbar and responsive design -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
+        rel="stylesheet">
+
+  <!-- Chart.js library is used to draw charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom CSS file for extra styling -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- 
+  This script checks whether the user is logged in or not.
+  If token is not present in localStorage, user is redirected to login page.
+-->
+<script>
+  if (!localStorage.getItem("token")) {
+    window.location.replace("login.html");
+  }
+</script>
+
+<!-- Navigation bar of the application -->
+<nav class="navbar navbar-dark bg-primary px-3">
+  <a class="navbar-brand" href="index.html">
+    Sales Analysis Dashboard
+  </a>
+
+  <!-- Logout button -->
+  <button class="btn btn-danger btn-sm" onclick="logout()">
+    Logout
+  </button>
+</nav>
+
+<!-- Main container -->
+<div class="container my-4">
+
+  <!-- Page heading -->
+  <h2 class="text-center mb-4">
+    Product Analysis
+  </h2>
+
+  <!-- 
+    This div is used to display product related information
+    like total sales, revenue, profit etc.
+    Data will be added using JavaScript.
+  -->
+  <div id="infoBox" class="mb-4"></div>
+
+  <!-- Chart to show sales trend -->
+  <div class="chart-container mb-4">
+    <canvas id="salesTrend"></canvas>
+  </div>
+
+  <!-- Chart to show revenue trend -->
+  <div class="chart-container mb-4">
+    <canvas id="revenueTrend"></canvas>
+  </div>
+
+  <!-- Chart to show profit trend -->
+  <div class="chart-container mb-4">
+    <canvas id="profitTrend"></canvas>
+  </div>
+
+</div>
+
+<!-- 
+  analysis.js file contains the logic to:
+  - get data from backend
+  - calculate sales, revenue and profit
+  - display charts using Chart.js
+-->
+<script src="analysis.js"></script>
+
+<!-- 
+  Logout function:
+  - Removes token and userId from localStorage
+  - Redirects user to login page
+-->
+<script>
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    window.location.href = "login.html";
+  }
 </script>
 
 </body>
